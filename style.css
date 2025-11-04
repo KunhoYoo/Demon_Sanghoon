@@ -82,7 +82,7 @@ body{ font-family:"Galmuri14", monospace; }
 /* 플레이어: 세로 이미지 그대로, 높이 기준 스케일 */
 #player{
   position:absolute; z-index:5;
-  height: 30vh;              /* 세로 기준, 원본비율 유지 */
+  height: 27vh;              /* 세로 기준, 원본비율 유지 */
   width: auto;
   left: 50%;
   transform: translateX(-50%);
