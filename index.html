@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Face Dodge – Mobile 9:16</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 레터박스/중앙 정렬 컨테이너 -->
+  <div id="viewport">
+    <!-- 고정 9:16 세로형 게임 영역 -->
+    <div id="gameArea">
+      <!-- 배경(항상 유지, 35% 불투명) -->
+      <div id="backgroundLayer"></div>
+
+      <!-- 상단 HUD (모바일처럼 큼직하게) -->
+      <div id="hud">
+        <div class="badge score">
+          <span>SCORE</span><b id="score">0</b>
+        </div>
+        <div class="spacer"></div>
+        <div class="badge best">
+          <span>BEST</span><b id="hiscore">0</b>
+        </div>
+      </div>
+
+      <!-- 플레이어 (세로 이미지 그대로) -->
+      <img id="player" src="images/player.png" alt="player" />
+
+      <!-- 게임오버 오버레이 (배경은 그대로 유지) -->
+      <div id="overlay">
+        <div class="title blink">GAME OVER</div>
+        <div class="subtitle">탭(클릭) 또는 <span>R</span> 재시작</div>
+      </div>
+
+      <!-- 붉은 플래시 (히트 순간만) -->
+      <div id="flash"></div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>

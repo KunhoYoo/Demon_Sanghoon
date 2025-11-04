@@ -1,0 +1,212 @@
+@font-face{
+  font-family:"Galmuri11";
+  src:url("fonts/Galmuri11.woff2") format("woff2");
+  font-display:swap;
+}
+
+*{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+html,body{ margin:0; height:100%; background:#000; }
+body{ font-family:"Galmuri11", monospace; }
+
+/* 레터박스용 중앙 정렬 뷰포트 */
+#viewport{
+  position:fixed; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  background:#000;            /* 좌우 레터박스 영역 */
+  touch-action: none;
+}
+
+/* 고정 9:16 세로 게임 캔버스 */
+#gameArea{
+  position:relative;
+  height: 100vh;             /* 세로 꽉채움 */
+  aspect-ratio: 9 / 16;      /* 가로:세로 = 9:16 */
+  max-width: 100vw;          /* 화면보다 넓어지지 않게 */
+  overflow:hidden;
+}
+
+/* 배경 레이어: 항상 유지 + 35% 투명 */
+#backgroundLayer{
+  position:absolute; inset:0;
+  background: url("images/background.jpg") center / cover no-repeat;
+  opacity: .35;
+  z-index: 0;
+}
+
+/* HUD: 모바일 스타일로 큼직하게 */
+#hud{
+  position:absolute; inset:0 0 auto 0;
+  display:flex; align-items:center; gap:12px;
+  padding: 1.8vh 2.2vh;      /* 화면 비율 기준 패딩 */
+  z-index: 10;
+  pointer-events:none;
+}
+#hud .spacer{ flex:1; }
+
+.badge{
+  display:flex; align-items:center; gap:1.6vh;
+  background: rgba(0,0,0,.35);
+  border: 0.35vh solid rgba(255,255,255,.14);
+  border-radius: 1.6vh;
+  padding: 1.2vh 1.8vh;
+  box-shadow: 0 0.6vh 0 rgba(0,0,0,.55);
+}
+.badge span{
+  color:#ffd78a;
+  font-size: 2vh;
+  text-shadow: 0 0.4vh 0 #000;
+}
+.badge b{
+  color:#fffbe0;
+  font-size: 3.2vh;          /* 큼직하게 */
+  letter-spacing:.06em;
+  text-shadow: 0 0.5vh 0 #000, 0 0 1.2vh #000;
+  /* 점수 팝업을 위한 transition 준비 */
+  transition: transform 0.1s ease-out;
+  transform: scale(1);
+}
+
+/* --- [추가] 점수 획득 시 팝업 애니메이션 --- */
+@keyframes scorePop {
+  0% { transform: scale(1.4); color: #ffffa0; }
+  100% { transform: scale(1); color: #fffbe0; }
+}
+/* JS에서 .score-pop 클래스를 추가할 것입니다 */
+#score.score-pop {
+  animation: scorePop 150ms ease-out;
+  transform-origin: center;
+}
+/* --- [추가] --- */
+
+
+/* 플레이어: 세로 이미지 그대로, 높이 기준 스케일 */
+#player{
+  position:absolute; z-index:5;
+  height: 30vh;              /* 세로 기준, 원본비율 유지 */
+  width: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 4vh;               /* 바닥에서 살짝 띄움 */
+  image-rendering: pixelated;
+  transform-origin:center;
+  /* --- [추가] 기울임 효과를 위한 transition --- */
+  transition: transform 0.15s ease-out;
+}
+
+/* --- [추가] 플레이어 기울임 효과 --- */
+#player.tilting-left {
+  transform: translateX(-50%) rotate(-8deg) scale(1.02);
+}
+#player.tilting-right {
+  transform: translateX(-50%) rotate(8deg) scale(1.02);
+}
+/* --- [추가] --- */
+
+
+/* 메테오: 정사각형 비주얼, 폭 기준 상대값 */
+.meteor{
+  position:absolute; z-index:4;
+  top:-20vh;
+  width: 9vw;                /* 게임캔버스 폭 기준 */
+  max-width: 12vh;           /* 너무 커지지 않게 제한 */
+  height: auto;
+  pointer-events:none;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0.6vh 0 rgba(0,0,0,.4));
+  /* --- [추가] 메테오 반짝임 효과 --- */
+  animation: meteorGlow 2.5s ease-in-out infinite alternate;
+}
+
+/* --- [추가] 메테오 반짝임 키프레임 --- */
+@keyframes meteorGlow {
+  from {
+    filter: drop-shadow(0 0.6vh 0 rgba(0,0,0,.4)) brightness(1);
+  }
+  to {
+    filter: drop-shadow(0 1vh 0.6vh rgba(0,0,0,.6)) brightness(1.15);
+  }
+}
+/* --- [추가] --- */
+
+
+/* 오버레이(배경 유지) */
+#overlay{
+  position:absolute; inset:0;
+  display:none;
+  align-items:center; justify-content:center; flex-direction:column;
+  gap:1.4vh; z-index:15; text-align:center;
+  /* --- [추가] 페이드 인 효과 --- */
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+}
+/* JS가 display:flex를 주면 opacity:1로 변경 */
+#overlay[style*="display: flex"] {
+  opacity: 1;
+}
+/* --- [추가] --- */
+
+
+#overlay .title{
+  color:#ff5656;
+  font-size: 6.4vh;
+  text-shadow: 0 0.6vh 0 #000, 0 0 2vh #7a0000;
+  /* --- [추가] 슬램 인 애니메이션 적용 --- */
+  animation: gameOverSlam 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* --- [추가] 게임오버 슬램 인 키프레임 --- */
+@keyframes gameOverSlam {
+  from { opacity: 0; transform: scale(2.5) rotate(-10deg); }
+  to { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+/* --- [추가] --- */
+
+#overlay .subtitle{
+  color:#ffe6a7; font-size: 2.6vh;
+  text-shadow: 0 0.4vh 0 #000;
+  /* --- [추가] 페이드 인 (지연) --- */
+  animation: fadeIn 0.5s ease-out 0.3s forwards;
+  opacity: 0;
+}
+@keyframes fadeIn { to { opacity: 1; } }
+/* --- [추가] --- */
+
+#overlay .subtitle span{
+  color:#fff; background:#222; padding:0.3vh 0.8vh; border:0.2vh solid #555;
+}
+
+/* 깜빡임: [수정] 좀 더 역동적인 플리커 효과로 변경 */
+.blink{ animation: blink 1.2s steps(1,end) infinite; }
+@keyframes blink{
+  0% { opacity: 1; }
+  48% { opacity: 1; }
+  50% { opacity: 0.3; } /* Quick flicker off */
+  52% { opacity: 1; }
+  70% { opacity: 1; }
+  72% { opacity: 0.6; } /* Softer pulse */
+  74% { opacity: 1; }
+  100% { opacity: 1; }
+}
+
+/* 히트 플래시 */
+#flash{
+  position:absolute; inset:0; z-index:14;
+  background: rgba(255,0,0,.42);
+  opacity: 0;
+}
+.flash{ animation: flashAnim 260ms ease-out; }
+@keyframes flashAnim{ from{opacity:.9} to{opacity:0} }
+
+/* 화면 흔들림 (짧게) */
+@keyframes screenShake{
+  0%{ transform: translate(0,0) }
+  20%{ transform: translate(-0.9vh, 0.8vh) }
+  40%{ transform: translate(1.1vh, -0.7vh) }
+  60%{ transform: translate(-0.8vh, -0.5vh) }
+  80%{ transform: translate(0.8vh, 0.6vh) }
+  100%{ transform: translate(0,0) }
+}
+.shake{ animation: screenShake 420ms ease-in-out; }
+
+/* 모바일 스크롤/제스처 방지 */
+html, body, #viewport, #gameArea{ touch-action: none; }
