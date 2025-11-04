@@ -1,4 +1,4 @@
-// 요소
+// 요소 참조
 const viewport = document.getElementById('viewport');
 const gameArea = document.getElementById('gameArea');
 const playerEl = document.getElementById('player');
@@ -15,17 +15,17 @@ const H = () => gameArea.clientHeight;
 let running = true;
 let score = 0;
 let best = Number(localStorage.getItem('FACE_BEST_V3') || 0);
-bestEl.textContent = best;
+bestEl.textContent = String(best);
 
-// 플레이어 위치/속도 (수평 이동만)
+// 플레이어 이동
 let px = 0, py = 0;
 let vx = 0;
-const SPEED = 600;        // 초기 이동속도 ↑ (세로형 박진감)
+const SPEED = 600;       // 초기 이동속도
 const FRICTION = 0.88;
 
-// 입력 상태
+// 입력
 const keys = { left:false, right:false, a:false, d:false };
-let pointerX = null;      // 터치/마우스 목표 x
+let pointerX = null;     // 터치/마우스 목표 x
 
 // 메테오
 const meteors = new Set();
@@ -35,11 +35,19 @@ const meteorImgs = ["images/meteor01.png", "images/meteor02.png"];
 let lastTime = performance.now();
 let dt = 0;
 let spawnClock = 0;
-let spawnGap = 520;       // 초기 스폰 속도 빠르게
+let spawnGap = 520;      // 초기 스폰 간격 (점점 줄어듦)
+
+// --------- 충돌 파라미터(튜닝용) ----------
+const METEOR_RADIUS_SCALE = 0.38; // 메테오 원형 반경 비율(0.32~0.42 권장)
+const PLAYER_SHRINK_X = 0.22;     // 플레이어 사각 히트박스 가로 축소
+const PLAYER_SHRINK_Y = 0.15;     // 플레이어 사각 히트박스 세로 축소
+// -----------------------------------------
+
+// 유틸
 const clamp = (min,v,max) => Math.max(min, Math.min(max, v));
 const rand  = (a,b) => a + Math.random()*(b-a);
 
-// ===== 입력 바인딩 (모바일 중심 + PC 지원)
+// ===== 입력 바인딩 (모바일/PC 둘다)
 gameArea.addEventListener('touchstart', e=>{
   const t = e.touches[0];
   pointerX = t.clientX - gameArea.getBoundingClientRect().left;
@@ -51,7 +59,6 @@ gameArea.addEventListener('touchmove', e=>{
 gameArea.addEventListener('touchend', ()=>{ pointerX = null; });
 
 gameArea.addEventListener('mousemove', e=>{
-  // 데스크톱 환경 지원
   pointerX = e.clientX - gameArea.getBoundingClientRect().left;
 });
 
@@ -70,12 +77,12 @@ document.addEventListener('keyup', e=>{
   if(e.key === 'ArrowLeft')  keys.left = false;
   if(e.key === 'ArrowRight') keys.right = false;
   if(e.key === 'a' || e.key === 'A') keys.a = false;
-  if(e.key === 'd' || e.key === 'D') keys.d = false;
+  if(e.key === 'd' || e.key === 'D') keys.d = false;   // ✅ 괄호 오류 수정
 });
 
-// ===== 플레이어 렌더 (세로 이미지 그대로)
+// ===== 플레이어 렌더
 function renderPlayer(){
-  // 터치/마우스 → LERP
+  // 터치/마우스 → 부드럽게 추종
   if(pointerX != null){
     const target = clamp(0, pointerX - playerEl.clientWidth/2, W()-playerEl.clientWidth);
     px = px + (target - px) * 0.35;
@@ -90,25 +97,19 @@ function renderPlayer(){
   px += vx * dt;
   px = clamp(0, px, W()-playerEl.clientWidth);
 
-  // --- [추가] 기울임 로직 ---
+  // 기울임 효과 클래스
   let tiltClass = '';
-  // 1. 키보드 입력 확인
-  if (L && !R) {
-    tiltClass = 'tilting-left';
-  } else if (R && !L) {
-    tiltClass = 'tilting-right';
-  }
-  // 2. 터치/마우스 입력 확인 (키보드 입력이 없을 때)
+  if (L && !R) tiltClass = 'tilting-left';
+  else if (R && !L) tiltClass = 'tilting-right';
   if (tiltClass === '' && pointerX != null) {
     const target = clamp(0, pointerX - playerEl.clientWidth/2, W()-playerEl.clientWidth);
-    const diff = target - (px - vx * dt); // 현재 위치와의 차이
+    const diff = target - (px - vx * dt);
     if (diff < -3) tiltClass = 'tilting-left';
     else if (diff > 3) tiltClass = 'tilting-right';
   }
   playerEl.className = tiltClass;
-  // --- [추가 완료] ---
 
-  // 바닥 기준 y (이미지 세로 그대로, 하단 여백 4vh)
+  // 바닥 기준 y 배치
   const bottomMargin = H() * 0.04;
   const ph = playerEl.clientHeight || H() * 0.3;
   py = H() - ph - bottomMargin;
@@ -117,11 +118,8 @@ function renderPlayer(){
   playerEl.style.top  = py + 'px';
 }
 
-// ===== 메테오
-function baseFallSpeed(){
-  // 세로형이라 낙하 속도 상향 + 점수 비례 증가
-  return 360 + Math.min(score * 10, 900);
-}
+// ===== 메테오 생성/업데이트
+function baseFallSpeed(){ return 360 + Math.min(score * 10, 900); }
 
 function spawnMeteor(){
   if(!running) return;
@@ -130,14 +128,12 @@ function spawnMeteor(){
   img.className = 'meteor';
   img.src = meteorImgs[Math.floor(Math.random()*meteorImgs.length)];
 
-  // 폭 기준 랜덤 사이즈(세로형 비율에서 너무 커지지 않도록 보정)
-  const minW = W()*0.08;  // 8% of width
-  const maxW = Math.min(W()*0.18, H()*0.12); // 화면 세로에도 제한
+  const minW = W()*0.08;                          // 폭 8% ~
+  const maxW = Math.min(W()*0.18, H()*0.12);      // 상한
   const size = clamp(40, rand(minW, maxW), 160);
   img.style.width = size + 'px';
 
   const x = Math.round(rand(0, W()-size));
-
   const m = {
     el: img,
     x, y: -size - 20,
@@ -154,67 +150,79 @@ function spawnMeteor(){
   gameArea.appendChild(img);
 }
 
+// 원(메테오) vs 축소 사각형(플레이어) 충돌
+function circleRectHit(cx, cy, r, rx, ry, rw, rh){
+  const nx = Math.max(rx, Math.min(cx, rx + rw));
+  const ny = Math.max(ry, Math.min(cy, ry + rh));
+  const dx = cx - nx;
+  const dy = cy - ny;
+  return (dx*dx + dy*dy) <= r*r;
+}
+
 function updateMeteors(){
-  const p = { x: px, y: py, w: playerEl.clientWidth, h: playerEl.clientHeight };
+  // 플레이어 축소 사각 히트박스
+  const pw = playerEl.clientWidth;
+  const ph = playerEl.clientHeight;
+  const rx = px + pw * PLAYER_SHRINK_X;
+  const ry = py + ph * PLAYER_SHRINK_Y;
+  const rw = pw * (1 - 2*PLAYER_SHRINK_X);
+  const rh = ph * (1 - 2*PLAYER_SHRINK_Y);
+
   for(const m of Array.from(meteors)){
     m.y += m.vy * dt;
     m.rot += m.vr * dt;
     m.el.style.top = m.y + 'px';
     m.el.style.transform = `rotate(${m.rot}deg)`;
 
-    // 충돌 (AABB)
-    if(!(m.x + m.w < p.x || m.x > p.x + p.w || m.y + m.h < p.y || m.y > p.y + p.h)){
+    // 메테오 원형 히트박스 (회전 무관)
+    const cx = m.x + m.w/2;
+    const cy = m.y + m.h/2;
+    const r  = Math.max(m.w, m.h) * METEOR_RADIUS_SCALE;
+
+    if (circleRectHit(cx, cy, r, rx, ry, rw, rh)) {
       return gameOver();
     }
 
-    // 화면 아래로 지나가면 점수
+    // 화면 아래로 지나가면 점수 +1
     if(m.y > H() + m.h){
       meteors.delete(m);
       m.el.remove();
       score++;
       scoreEl.textContent = String(score);
-
-      // --- [추가] 점수 팝업 애니메이션 트리거 ---
       scoreEl.classList.add('score-pop');
-      // 애니메이션 시간(150ms) 후에 클래스 제거
-      setTimeout(() => scoreEl.classList.remove('score-pop'), 150);
-      // --- [추가 완료] ---
+      setTimeout(()=>scoreEl.classList.remove('score-pop'), 150);
     }
   }
 }
 
-// 스폰 타이머(공격적 난이도 상승 + 간헐적 동시 스폰)
+// 스폰 타이머(난이도 상승 + 간헐적 2중 스폰)
 let twoSpawnBias = 0;
 function spawnTick(ms){
   spawnClock += ms;
-  const targetGap = Math.max(200, 520 - score*8);  // 빠르게 좁혀짐
+  const targetGap = Math.max(200, 520 - score*8);
   spawnGap += (targetGap - spawnGap) * 0.25;
 
   while(spawnClock >= spawnGap){
     spawnClock -= spawnGap;
     spawnMeteor();
-    // 점수 오를수록 2개 동시 스폰 확률 증가
     const pDouble = Math.min(0.35, 0.12 + score*0.004 + twoSpawnBias);
-    if(Math.random() < pDouble){ spawnMeteor(); }
-    twoSpawnBias = Math.max(0, twoSpawnBias*0.9); // 약간의 관성
+    if(Math.random() < pDouble) spawnMeteor();
+    twoSpawnBias = Math.max(0, twoSpawnBias*0.9);
   }
 }
 
-// ===== 게임오버 (배경은 유지, 텍스트만 깜빡임 계속)
+// 게임오버
 function gameOver(){
   if(!running) return;
   running = false;
 
-  // 이펙트
   flashEl.classList.add('flash');
   gameArea.classList.add('shake');
   setTimeout(()=> flashEl.classList.remove('flash'), 320);
   setTimeout(()=> gameArea.classList.remove('shake'), 460);
 
-  // 오버레이 표시
   overlay.style.display = 'flex';
 
-  // 베스트 저장
   if(score > best){
     best = score;
     localStorage.setItem('FACE_BEST_V3', String(best));
@@ -222,28 +230,22 @@ function gameOver(){
   bestEl.textContent = String(best);
 }
 
-// ===== 재시작
+// 재시작
 function restart(){
-  // 메테오 정리
   for(const m of meteors){ m.el.remove(); }
   meteors.clear();
 
-  // 상태 초기화
-  score = 0;
-  scoreEl.textContent = '0';
-  running = true;
-  overlay.style.display = 'none';
+  score = 0; scoreEl.textContent = '0';
+  running = true; overlay.style.display = 'none';
 
-  // 입력 상태 리셋
   vx = 0; pointerX = null;
   spawnClock = 0; spawnGap = 520;
   lastTime = performance.now();
 
-  // 루프 재개
   loop(lastTime);
 }
 
-// ===== 루프
+// 루프
 function loop(now){
   if(!running) return;
   now ??= performance.now();
@@ -257,7 +259,7 @@ function loop(now){
   requestAnimationFrame(loop);
 }
 
-// ===== 초기화 (플레이어 위치는 이미지 로드 후 보정)
+// 초기 배치
 function placePlayer(){
   const ph = playerEl.clientHeight || H()*0.3;
   const bottomMargin = H()*0.04;
@@ -267,20 +269,14 @@ function placePlayer(){
   playerEl.style.top  = py + 'px';
 }
 
+// 시작
 function init(){
-  // 플레이어 이미지 로드 후 사이징 보정
-  if(playerEl.complete){
-    placePlayer();
-  }else{
-    playerEl.onload = placePlayer;
-  }
+  if(playerEl.complete) placePlayer();
+  else playerEl.onload = placePlayer;
   lastTime = performance.now();
   loop(lastTime);
 }
-
-// 리사이즈 대응(세로 고정, 좌우 레터박스)
 window.addEventListener('resize', ()=>{
-  // 플레이어 y 재계산 + x 경계 체크
   const ph = playerEl.clientHeight || H()*0.3;
   const bottomMargin = H()*0.04;
   py = H() - ph - bottomMargin;
@@ -288,6 +284,4 @@ window.addEventListener('resize', ()=>{
   playerEl.style.left = px + 'px';
   playerEl.style.top  = py + 'px';
 });
-
-// 시작!
 init();

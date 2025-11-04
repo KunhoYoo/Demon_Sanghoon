@@ -1,12 +1,12 @@
 @font-face{
-  font-family:"Galmuri11";
-  src:url("fonts/Galmuri11.woff2") format("woff2");
+  font-family:"Galmuri14";
+  src:url("fonts/Galmuri14.woff2") format("woff2");
   font-display:swap;
 }
 
 *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
 html,body{ margin:0; height:100%; background:#000; }
-body{ font-family:"Galmuri11", monospace; }
+body{ font-family:"Galmuri14", monospace; }
 
 /* 레터박스용 중앙 정렬 뷰포트 */
 #viewport{
@@ -210,3 +210,21 @@ body{ font-family:"Galmuri11", monospace; }
 
 /* 모바일 스크롤/제스처 방지 */
 html, body, #viewport, #gameArea{ touch-action: none; }
+
+/* Regular (400) */
+@font-face{
+  font-family: "Galmuri14";
+  src: url("fonts/Galmuri14.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Bold (700) - 같은 파일로 매핑하여 폴백 방지 */
+@font-face{
+  font-family: "Galmuri14";
+  src: url("fonts/Galmuri14.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
